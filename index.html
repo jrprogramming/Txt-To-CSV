@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Read Text File</title>
+        <style>
+            html,body {
+                width: 100%;
+                height: 100%;
+                font-family:Arial, Helvetica, sans-serif;
+                margin: 0;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .div {
+                background-color: #d3d3d3;
+                border-radius: 10px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                margin: 12px;
+            }
+            #file-input {
+                display: none;
+            }
+            label {
+                background-color: #ffffff;
+                cursor: pointer;
+                padding: 8px;
+                border-radius: 10px;
+                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="div">
+            <h1>Convert .txt to .csv</h1>
+            <label for="file-input">
+                <p>Open files</p>
+            </label>
+            <input type="file" id="file-input" name="inputfile" id="inputfile" multiple>
+        </div>
+        <script type="text/javascript">
+            document.querySelector('#file-input').addEventListener('change', function() {
+
+                let csvRows = [["Filename","Date","Status","Number","Name","Sub","Top"]];
+
+                const readFileAsText = async file => {
+                    return new Promise(function(resolve,reject){
+                        const fr = new FileReader();
+
+                        fr.onload = () => {
+                            const result = fr.result.split('\r\n');
+
+                            const parsedResult = result.map(line => {
+                                const date = line.substring(0, 10).trim();
+                                const status = line.substring(10, 11).trim();
+                                const number = line.substring(11, 15).trim();
+                                const name = line.substring(15, 52).trim();
+                                const sub = line.substring(52, 71).trim();
+                                const top = line.substring(71, 73).trim();
+
+                                return {
+                                    filename: file.name,
+                                    date,
+                                    status,
+                                    number,
+                                    name,
+                                    sub,
+                                    top
+                                };
+                            });
+
+                            csvRows.push(...parsedResult);
+                            resolve(fr.result);
+                        };
+
+                        fr.readAsText(file);
+                    });
+                }
+
+                const fileReaders = [];
+
+                const files = Object.values(this.files);
+                files.sort((fileA, fileB) => fileA.name.localeCompare(fileB.name));
+
+                const fileNames = Object.values(files).map(file => file.name).join('-');
+
+                Object.values(files).forEach(file => {
+                    if (file.size > 10000000) {
+                        if (window.confirm(`Are you sure you want to process ${file.name} that has a file size of ${Math.floor(file.size / 1000000)} MB?`)) {
+                            fileReaders.push(readFileAsText(file));
+                        }
+                    } else if (file.size < 73) {
+                        alert(`${file.name} cannot process due to a lack of data`);
+                    } else {
+                        fileReaders.push(readFileAsText(file));
+                    }
+                });
+
+                Promise.all(fileReaders).then(() => {
+                    csvRows = csvRows.map(row => {
+                        if (row.date) {
+                            return Object.values(row);
+                        }
+                        return row;
+                    });
+
+                    const csvArray = [];
+
+                    for (var i = 0; i < csvRows.length; ++i) {
+                        for (var j = 0; j < csvRows[i].length; ++j) {
+                            csvRows[i][j] = '\"' + csvRows[i][j] + '\"';  // Handle elements that contain commas
+                        }
+                        csvArray.push(csvRows[i].join(','));
+                    }
+
+                    const csvContent = "data:text/csv;charset=utf-8," + csvArray.join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.textContent = 'Download CSV';
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `${fileNames}-parsed.csv`);
+                    document.body.removeChild(document.body.lastChild);
+                    document.body.appendChild(link); // Required for FF
+                    link.click();
+                });
+            });
+        </script>
+    </body>
+    
+</html>
